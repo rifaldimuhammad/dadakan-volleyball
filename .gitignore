@@ -1,3 +1,15 @@
 node_modules
 dist
 .env
+.env.local
+
+# build artifacts
+tsconfig.tsbuildinfo
+
+# OS / editor
+.DS_Store
+.idea
+.vscode
+
+# KiroCrew local settings (machine-specific)
+.kiro/settings/
