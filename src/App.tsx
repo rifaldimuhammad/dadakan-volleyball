@@ -9,6 +9,7 @@ import HomeV2 from './pages-v2/HomeV2'
 import SchedulePageV2 from './pages-v2/SchedulePageV2'
 import AdminLoginV2 from './pages-v2/AdminLoginV2'
 import AdminDashboardV2 from './pages-v2/AdminDashboardV2'
+import GalleryManagerV2 from './pages-v2/GalleryManagerV2'
 
 /** Redirect /v2/jadwal/:id -> /jadwal/:id (dan padanannya) agar link lama tetap jalan. */
 function RedirectWithId({ to }: { to: (id: string) => string }) {
@@ -24,6 +25,7 @@ export default function App() {
       <Route path="/jadwal/:id" element={<SchedulePageV2 />} />
       <Route path="/admin/login" element={<AdminLoginV2 />} />
       <Route path="/admin" element={<RequireAdmin><AdminDashboardV2 /></RequireAdmin>} />
+      <Route path="/admin/galeri" element={<RequireAdmin><GalleryManagerV2 /></RequireAdmin>} />
       <Route path="/admin/jadwal/:id" element={<RequireAdmin><SchedulePageV2 admin /></RequireAdmin>} />
 
       {/* === Redirect link lama /v2/* -> path utama === */}

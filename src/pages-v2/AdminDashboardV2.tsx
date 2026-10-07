@@ -43,9 +43,14 @@ export default function AdminDashboardV2() {
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-court-600 text-white">🏐</span>
             <h1 className="text-[15px] font-extrabold tracking-tight text-ink">Dashboard Admin</h1>
           </div>
-          <button onClick={logout} className="rounded-xl px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition hover:bg-slate-100">
-            Keluar
-          </button>
+          <div className="flex items-center gap-1.5">
+            <Link to="/admin/galeri" className="rounded-xl px-3 py-1.5 text-[13px] font-semibold text-court-700 transition hover:bg-court-50">
+              🖼️ Galeri
+            </Link>
+            <button onClick={logout} className="rounded-xl px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition hover:bg-slate-100">
+              Keluar
+            </button>
+          </div>
         </div>
       </header>
 
