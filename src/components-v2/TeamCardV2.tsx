@@ -84,9 +84,12 @@ export default function TeamCardV2({ team, players, admin, onJoin, onRemove, onT
               {p && p.paid && (
                 <span
                   title="Sudah bayar"
-                  className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-500 text-[11px] font-black text-white"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[11px] font-bold text-white"
                 >
-                  ✓
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.5 7.5a1 1 0 01-1.42 0l-3.5-3.5a1 1 0 111.42-1.42l2.79 2.79 6.79-6.79a1 1 0 011.42 0z" clipRule="evenodd" />
+                  </svg>
+                  Sudah bayar
                 </span>
               )}
               {admin && p && (
