@@ -9,11 +9,10 @@ interface Props {
   waitingFull?: boolean       // true jika waiting list tim ini juga penuh
   admin?: boolean
   onJoin: (t: Team) => void
-  onRemove: (p: Player) => void
   onEdit?: (p: Player) => void
 }
 
-export default function TeamCardV2({ team, players, core: coreSize, maxTeam, waitingFull, admin, onJoin, onRemove, onEdit }: Props) {
+export default function TeamCardV2({ team, players, core: coreSize, maxTeam, waitingFull, admin, onJoin, onEdit }: Props) {
   const t = TEAM_THEME[team]
   // Urutkan: core dulu, lalu reserve, masing-masing by created_at.
   const core = players.filter(p => p.roster === 'core')
@@ -55,10 +54,7 @@ export default function TeamCardV2({ team, players, core: coreSize, maxTeam, wai
         </span>
       )}
       {admin && p && (
-        <>
-          <button onClick={() => onEdit?.(p)} className="rounded-lg px-2 py-1 text-[12px] font-bold text-court-600 transition hover:bg-court-50 active:scale-95">Edit</button>
-          <button onClick={() => onRemove(p)} className="rounded-lg px-2 py-1 text-[12px] font-bold text-rose-500 transition hover:bg-rose-50 active:scale-95">Hapus</button>
-        </>
+        <button onClick={() => onEdit?.(p)} className="shrink-0 rounded-lg px-2.5 py-1 text-[12px] font-bold text-court-600 transition hover:bg-court-50 active:scale-95">Edit</button>
       )}
     </li>
   )

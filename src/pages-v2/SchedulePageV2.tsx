@@ -220,7 +220,7 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
       <main className="mx-auto -mt-5 max-w-md space-y-4 px-4">
         {ORDER.map((key, i) => (
           <div key={key} style={{ animationDelay: `${i * 50}ms` }} className="animate-fade-up">
-            <TeamCardV2 team={key} admin={admin} players={players.filter(p => p.team === key && p.roster !== 'waiting')} core={cap.core} maxTeam={cap.maxTeam} waitingFull={waitingFullFor(key)} onJoin={open} onRemove={setDel} onEdit={openEdit} />
+            <TeamCardV2 team={key} admin={admin} players={players.filter(p => p.team === key && p.roster !== 'waiting')} core={cap.core} maxTeam={cap.maxTeam} waitingFull={waitingFullFor(key)} onJoin={open} onEdit={openEdit} />
           </div>
         ))}
 
@@ -467,6 +467,13 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
             <button className="v2-btn v2-btn-ghost" onClick={() => setEdit(null)}>Batal</button>
             <button className="v2-btn" disabled={eBusy} onClick={saveEdit}>{eBusy ? 'Menyimpan…' : swapWith ? 'Tukar sekarang' : 'Simpan'}</button>
           </div>
+          <button
+            disabled={eBusy}
+            onClick={() => { const p = edit; setEdit(null); setDel(p) }}
+            className="mt-1 w-full rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-[13px] font-bold text-rose-600 transition hover:bg-rose-100 active:scale-[0.99] disabled:opacity-50"
+          >
+            Hapus pemain ini
+          </button>
         </Sheet>
       )}
 
