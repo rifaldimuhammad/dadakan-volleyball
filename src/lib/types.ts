@@ -1,7 +1,7 @@
 export type Team = 'red' | 'blue' | 'yellow' | 'green'
 export interface Schedule { id: string; date: string; start_time: string; end_time: string; location: string; status: 'active' | 'inactive'; maps_url?: string | null }
 export type Position = 'setter' | 'spiker'
-export interface Player { id: string; schedule_id: string; team: Team; name: string; phone: string | null; paid: boolean; position: Position; created_at: string }
+export interface Player { id: string; schedule_id: string; team: Team; name: string; phone: string | null; paid: boolean; position: Position; is_newbie: boolean; created_at: string }
 export const POSITIONS: { key: Position; label: string; short: string; emoji: string }[] = [
   { key: 'spiker', label: 'Pemukul', short: 'Pemukul', emoji: '💥' },
   { key: 'setter', label: 'Toser / Setter', short: 'Toser', emoji: '🙌' },

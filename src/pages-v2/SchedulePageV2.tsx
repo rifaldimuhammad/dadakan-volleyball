@@ -21,11 +21,13 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
   const [eTeam, setETeam] = useState<Team>('red')
   const [ePos, setEPos] = useState<Position>('spiker')
   const [ePaid, setEPaid] = useState(false)
+  const [eNewbie, setENewbie] = useState(false)
   const [eBusy, setEBusy] = useState(false)
   const [eErr, setEErr] = useState('')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [position, setPosition] = useState<Position>('spiker')
+  const [newbie, setNewbie] = useState(false)
   const [team, setTeam] = useState<Team>('red')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -49,10 +51,10 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
     return () => { supabase.removeChannel(ch) }
   }, [id, load])
 
-  const open = (t: Team) => { setJoin(t); setTeam(t); setName(''); setPhone(''); setPosition('spiker'); setErr(''); setDone(null) }
+  const open = (t: Team) => { setJoin(t); setTeam(t); setName(''); setPhone(''); setPosition('spiker'); setNewbie(false); setErr(''); setDone(null) }
   async function submit() {
     setBusy(true); setErr('')
-    const e = await registerPlayer(id!, team, name, phone, position)
+    const e = await registerPlayer(id!, team, name, phone, position, newbie)
     setBusy(false)
     if (e) return setErr(e)
     setDone(team); load()
@@ -63,7 +65,7 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
     setDel(null); load()
   }
   function openEdit(p: Player) {
-    setEdit(p); setETeam(p.team); setEPos(p.position); setEPaid(p.paid); setEErr('')
+    setEdit(p); setETeam(p.team); setEPos(p.position); setEPaid(p.paid); setENewbie(p.is_newbie); setEErr('')
   }
   async function saveEdit() {
     if (!edit) return
@@ -84,7 +86,7 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
       }
     }
     const { error } = await supabase.from('players')
-      .update({ team: eTeam, position: ePos, paid: ePaid })
+      .update({ team: eTeam, position: ePos, paid: ePaid, is_newbie: eNewbie })
       .eq('id', edit.id)
     setEBusy(false)
     if (error) { console.error(error); return setEErr('Gagal menyimpan perubahan. Coba lagi.') }
@@ -220,6 +222,21 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
                 )}
               </div>
 
+              <div>
+                <label className="v2-label">Level Main</label>
+                <button
+                  type="button" onClick={() => setNewbie(v => !v)}
+                  className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold transition
+                    ${newbie ? 'border-transparent bg-court-50 text-court-700 ring-2 ring-court-500/30' : 'border-slate-200 text-ink-muted hover:bg-slate-50'}`}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    {newbie ? '🌱' : '🏐'} Saya masih newbie / baru belajar
+                  </span>
+                  <span className={`grid h-5 w-5 place-items-center rounded-md border text-[11px] ${newbie ? 'border-court-500 bg-court-500 text-white' : 'border-slate-300 text-transparent'}`}>✓</span>
+                </button>
+                <p className="mt-1 text-[12px] text-ink-muted">Opsional — bantu panitia menyebar pemain pemula merata ke tiap tim.</p>
+              </div>
+
               {admin ? (
                 <div>
                   <label className="v2-label">Pilih Tim</label>
@@ -288,6 +305,21 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
                 {ePaid ? '✅ Sudah bayar' : '⬜ Belum bayar'}
               </span>
               <span className={`text-[11px] font-semibold ${ePaid ? 'text-emerald-600' : 'text-slate-400'}`}>ketuk untuk ubah</span>
+            </button>
+          </div>
+
+          {/* level newbie */}
+          <div>
+            <label className="v2-label">Level Main</label>
+            <button
+              type="button" onClick={() => setENewbie(v => !v)}
+              className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-sm font-bold transition
+                ${eNewbie ? 'border-transparent bg-court-50 text-court-700 ring-2 ring-court-500/30' : 'border-slate-200 text-ink-muted hover:bg-slate-50'}`}
+            >
+              <span className="inline-flex items-center gap-2">
+                {eNewbie ? '🌱 Newbie / baru belajar' : '🏐 Sudah bisa main'}
+              </span>
+              <span className="text-[11px] font-semibold text-slate-400">ketuk untuk ubah</span>
             </button>
           </div>
 

@@ -36,7 +36,7 @@ export default function SchedulePage({ admin = false }: { admin?: boolean }) {
   const open = (t: Team) => { setJoin(t); setTeam(t); setName(''); setPhone(''); setPosition('spiker'); setErr(''); setDone(null) }
   async function submit() {
     setBusy(true); setErr('')
-    const e = await registerPlayer(id!, team, name, phone, position)
+    const e = await registerPlayer(id!, team, name, phone, position, false)
     setBusy(false)
     if (e) return setErr(e)
     setDone(team); load()

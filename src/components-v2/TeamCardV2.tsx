@@ -29,6 +29,11 @@ export default function TeamCardV2({ team, players, admin, onJoin, onRemove, onE
         {!full && players.filter(p => p.position === 'setter').length === 0 && (
           <span className="v2-chip bg-amber-100 text-amber-700" title="Tim ini belum punya toser/setter">Butuh toser</span>
         )}
+        {players.filter(p => p.is_newbie).length > 0 && (
+          <span className="v2-chip bg-court-100 text-court-700" title="Jumlah pemain pemula di tim ini">
+            🌱 {players.filter(p => p.is_newbie).length} newbie
+          </span>
+        )}
         {full && <span className={`v2-chip bg-slate-100 text-ink-muted`}>Penuh</span>}
       </div>
 
@@ -62,6 +67,14 @@ export default function TeamCardV2({ team, players, admin, onJoin, onRemove, onE
                       className="inline-flex shrink-0 items-center gap-1 rounded-full bg-court-100 px-1.5 py-0.5 text-[10px] font-bold text-court-700"
                     >
                       🙌 Toser
+                    </span>
+                  )}
+                  {p && p.is_newbie && (
+                    <span
+                      title="Pemain pemula"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-full bg-lime-100 px-1.5 py-0.5 text-[10px] font-bold text-lime-700"
+                    >
+                      🌱 Newbie
                     </span>
                   )}
                 </span>

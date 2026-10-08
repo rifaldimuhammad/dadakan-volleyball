@@ -14,11 +14,11 @@ export function waLink(phone: string): string {
 const ERR = 'Terjadi kesalahan. Silakan coba lagi.'
 const NET = 'Tidak dapat terhubung. Periksa koneksi internet kamu dan coba lagi.'
 /** Mengembalikan null jika berhasil, atau pesan error Bahasa Indonesia. */
-export async function registerPlayer(scheduleId: string, team: Team, name: string, phone: string, position: Position): Promise<string | null> {
+export async function registerPlayer(scheduleId: string, team: Team, name: string, phone: string, position: Position, isNewbie: boolean): Promise<string | null> {
   if (!name.trim()) return 'Nama tidak boleh kosong.'
   if (phone.replace(/[^0-9]/g, '').length < 8) return 'Nomor telepon wajib diisi (minimal 8 digit).'
   if (position !== 'setter' && position !== 'spiker') return 'Pilih posisi (toser atau pemukul).'
-  const { data, error } = await supabase.rpc('register_player', { p_schedule_id: scheduleId, p_team: team, p_name: name, p_phone: phone, p_position: position })
+  const { data, error } = await supabase.rpc('register_player', { p_schedule_id: scheduleId, p_team: team, p_name: name, p_phone: phone, p_position: position, p_is_newbie: isNewbie })
   if (error) { console.error(error); return /fetch|network/i.test(error.message) ? NET : ERR }
   switch (data) {
     case 'ok': return null
