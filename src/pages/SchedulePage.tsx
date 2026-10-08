@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { TEAMS, type Player, type Schedule, type Team } from '../lib/types'
+import { TEAMS, POSITIONS, type Player, type Position, type Schedule, type Team } from '../lib/types'
 import { fmtDate, fmtTime, registerPlayer } from '../lib/utils'
 import TeamCard from '../components/TeamCard'
 import Modal from '../components/Modal'
@@ -13,7 +13,7 @@ export default function SchedulePage({ admin = false }: { admin?: boolean }) {
   const [state, setState] = useState<'loading' | 'ok' | 'missing' | 'error'>('loading')
   const [join, setJoin] = useState<Team | null>(null)
   const [del, setDel] = useState<Player | null>(null)
-  const [name, setName] = useState(''); const [phone, setPhone] = useState(''); const [team, setTeam] = useState<Team>('red')
+  const [name, setName] = useState(''); const [phone, setPhone] = useState(''); const [position, setPosition] = useState<Position>('spiker'); const [team, setTeam] = useState<Team>('red')
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false); const [done, setDone] = useState<Team | null>(null)
 
   const load = useCallback(async () => {
@@ -33,10 +33,10 @@ export default function SchedulePage({ admin = false }: { admin?: boolean }) {
     return () => { supabase.removeChannel(ch) }
   }, [id, load])
 
-  const open = (t: Team) => { setJoin(t); setTeam(t); setName(''); setPhone(''); setErr(''); setDone(null) }
+  const open = (t: Team) => { setJoin(t); setTeam(t); setName(''); setPhone(''); setPosition('spiker'); setErr(''); setDone(null) }
   async function submit() {
     setBusy(true); setErr('')
-    const e = await registerPlayer(id!, team, name, phone)
+    const e = await registerPlayer(id!, team, name, phone, position)
     setBusy(false)
     if (e) return setErr(e)
     setDone(team); load()
@@ -68,6 +68,8 @@ export default function SchedulePage({ admin = false }: { admin?: boolean }) {
               <input className="input" autoFocus placeholder="Masukkan nama kamu" maxLength={40} value={name} onChange={e => setName(e.target.value)} /></div>
             <div><label className="block text-sm font-semibold mb-1">Nomor Telepon</label>
               <input className="input" type="tel" inputMode="tel" placeholder="08xxxxxxxxxx" maxLength={20} value={phone} onChange={e => setPhone(e.target.value)} /></div>
+            <div><label className="block text-sm font-semibold mb-1">Posisi</label>
+              <select className="input" value={position} onChange={e => setPosition(e.target.value as Position)}>{POSITIONS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}</select></div>
             {admin
               ? <div><label className="block text-sm font-semibold mb-1">Pilih Tim</label><select className="input" value={team} onChange={e => setTeam(e.target.value as Team)}>{TEAMS.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}</select></div>
               : <p>Tim yang dipilih: <b>{label(team).emoji} {label(team).label}</b></p>}
