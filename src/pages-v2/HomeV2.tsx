@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { GalleryItem, Schedule } from '../lib/types'
-import { fmtDate, fmtTime, scheduleSlug } from '../lib/utils'
+import { fmtDate, fmtTime, scheduleSlug, capacityOf } from '../lib/utils'
 import { CLUB_INFO } from '../components-v2/info'
 
-const CAP = 24 // 4 tim x 6
+const TEAMS = 4 // merah, biru, kuning, hijau
 
 export default function HomeV2() {
   const [list, setList] = useState<Schedule[] | null>(null)
@@ -18,14 +18,18 @@ export default function HomeV2() {
     const today = new Date().toISOString().slice(0, 10)
     Promise.all([
       supabase.from('schedules').select('*').eq('status', 'active').gte('date', today).order('date').order('start_time'),
-      supabase.from('players').select('schedule_id'),
+      supabase.from('players').select('schedule_id, roster'),
       supabase.from('gallery').select('*').order('sort_order').order('created_at'),
     ]).then(([s, p, g]) => {
       if (s.error) { console.error(s.error); return setErr('Terjadi kesalahan. Silakan coba lagi.') }
       setList(s.data as Schedule[])
       if (!p.error && p.data) {
         const c: Record<string, number> = {}
-        p.data.forEach(r => { c[r.schedule_id] = (c[r.schedule_id] ?? 0) + 1 })
+        // Hitung hanya pemain aktif (core + reserve), waiting list tidak dihitung ke kapasitas.
+        p.data.forEach((r: { schedule_id: string; roster?: string }) => {
+          if (r.roster === 'waiting') return
+          c[r.schedule_id] = (c[r.schedule_id] ?? 0) + 1
+        })
         setCounts(c)
       }
       if (!g.error && g.data) setGallery(g.data as GalleryItem[])
@@ -78,8 +82,9 @@ export default function HomeV2() {
 
         {list?.map((s, i) => {
           const n = counts[s.id] ?? 0
-          const full = n >= CAP
-          const pct = Math.min(100, Math.round((n / CAP) * 100))
+          const cap = TEAMS * capacityOf(s).maxTeam
+          const full = n >= cap
+          const pct = Math.min(100, Math.round((n / cap) * 100))
           return (
             <Link
               key={s.id}
@@ -116,7 +121,7 @@ export default function HomeV2() {
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                       <div className={`h-full rounded-full transition-all duration-500 ${full ? 'bg-rose-400' : 'bg-court-500'}`} style={{ width: `${pct}%` }} />
                     </div>
-                    <span className={`text-[12px] font-bold ${full ? 'text-rose-600' : 'text-ink-soft'}`}>{n}/{CAP}</span>
+                    <span className={`text-[12px] font-bold ${full ? 'text-rose-600' : 'text-ink-soft'}`}>{n}/{cap}</span>
                   </div>
 
                   <span className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-bold text-court-600">

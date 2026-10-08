@@ -2,14 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Schedule } from '../lib/types'
-import { fmtDate, fmtTime, scheduleSlug } from '../lib/utils'
+import { fmtDate, fmtTime, scheduleSlug, capacityOf } from '../lib/utils'
 import ScheduleFormV2 from '../components-v2/ScheduleFormV2'
 import Sheet from '../components-v2/Sheet'
 
 export default function AdminDashboardV2() {
   const nav = useNavigate()
   const [list, setList] = useState<Schedule[] | null>(null)
-  const [counts, setCounts] = useState<Record<string, number>>({})
+  const [counts, setCounts] = useState<Record<string, { active: number; waiting: number }>>({})
   const [form, setForm] = useState<Schedule | 'new' | null>(null)
   const [del, setDel] = useState<Schedule | null>(null)
   const [err, setErr] = useState('')
@@ -17,11 +17,15 @@ export default function AdminDashboardV2() {
   const load = useCallback(async () => {
     const [s, p] = await Promise.all([
       supabase.from('schedules').select('*').order('date', { ascending: false }),
-      supabase.from('players').select('schedule_id'),
+      supabase.from('players').select('schedule_id, roster'),
     ])
     if (s.error || p.error) { console.error(s.error ?? p.error); return setErr('Terjadi kesalahan. Silakan coba lagi.') }
-    const c: Record<string, number> = {}
-    p.data.forEach(r => { c[r.schedule_id] = (c[r.schedule_id] ?? 0) + 1 })
+    const c: Record<string, { active: number; waiting: number }> = {}
+    p.data.forEach((r: { schedule_id: string; roster?: string }) => {
+      const e = c[r.schedule_id] ?? (c[r.schedule_id] = { active: 0, waiting: 0 })
+      if (r.roster === 'waiting') e.waiting++
+      else e.active++
+    })
     setCounts(c); setList(s.data as Schedule[])
   }, [])
 
@@ -70,7 +74,8 @@ export default function AdminDashboardV2() {
         )}
 
         {list?.map((s, i) => {
-          const n = counts[s.id] ?? 0
+          const cnt = counts[s.id] ?? { active: 0, waiting: 0 }
+          const cap = 4 * capacityOf(s).maxTeam
           const active = s.status === 'active'
           return (
             <div key={s.id} style={{ animationDelay: `${i * 50}ms` }} className="v2-card animate-fade-up overflow-hidden p-0">
@@ -86,9 +91,12 @@ export default function AdminDashboardV2() {
                 </span>
               </div>
 
-              <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-2.5">
-                <span className="text-sm font-semibold text-ink">👥 {n}/24</span>
-                <span className="text-xs text-ink-muted">pemain terdaftar</span>
+              <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-2.5">
+                <span className="text-sm font-semibold text-ink">👥 {cnt.active}/{cap}</span>
+                <span className="text-xs text-ink-muted">pemain (inti + cadangan)</span>
+                {cnt.waiting > 0 && (
+                  <span className="v2-chip bg-slate-100 text-ink-muted">⏳ {cnt.waiting} waiting</span>
+                )}
               </div>
 
               <div className="grid grid-cols-3 gap-2 border-t border-slate-100 p-3">

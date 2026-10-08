@@ -12,6 +12,9 @@ export default function ScheduleFormV2({
     location: initial?.location ?? '',
     maps_url: initial?.maps_url ?? '',
     status: initial?.status ?? 'active',
+    core_size: String(initial?.core_size ?? 6),
+    max_per_team: String(initial?.max_per_team ?? 9),
+    max_waiting: String(initial?.max_waiting ?? 5),
   })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -19,8 +22,19 @@ export default function ScheduleFormV2({
 
   async function save() {
     if (!f.date || !f.location.trim()) return setErr('Tanggal dan lokasi wajib diisi.')
+    const core = parseInt(f.core_size, 10)
+    const maxTeam = parseInt(f.max_per_team, 10)
+    const maxWait = parseInt(f.max_waiting, 10)
+    if (!Number.isFinite(core) || core < 1) return setErr('Jumlah pemain inti minimal 1.')
+    if (!Number.isFinite(maxTeam) || maxTeam < core) return setErr('Maks pemain per tim tidak boleh kurang dari jumlah inti.')
+    if (!Number.isFinite(maxWait) || maxWait < 0) return setErr('Maks waiting list tidak boleh negatif.')
     setBusy(true); setErr('')
-    const payload = { ...f, location: f.location.trim(), maps_url: f.maps_url.trim() || null, updated_at: new Date().toISOString() }
+    const payload = {
+      date: f.date, start_time: f.start_time, end_time: f.end_time, status: f.status,
+      location: f.location.trim(), maps_url: f.maps_url.trim() || null,
+      core_size: core, max_per_team: maxTeam, max_waiting: maxWait,
+      updated_at: new Date().toISOString(),
+    }
     const { error } = initial
       ? await supabase.from('schedules').update(payload).eq('id', initial.id)
       : await supabase.from('schedules').insert(payload)
@@ -53,6 +67,29 @@ export default function ScheduleFormV2({
         <label className="v2-label">Link Google Maps <span className="font-normal text-ink-muted">(opsional)</span></label>
         <input className="v2-input" placeholder="https://maps.google.com/?q=..." value={f.maps_url} onChange={e => set('maps_url', e.target.value)} />
       </div>
+
+      {/* kapasitas per tim */}
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3">
+        <p className="mb-2 text-[13px] font-bold text-ink">Kapasitas per Tim</p>
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="v2-label">Inti</label>
+            <input type="number" min={1} max={20} className="v2-input" value={f.core_size} onChange={e => set('core_size', e.target.value)} />
+          </div>
+          <div>
+            <label className="v2-label">Maks Tim</label>
+            <input type="number" min={1} max={30} className="v2-input" value={f.max_per_team} onChange={e => set('max_per_team', e.target.value)} />
+          </div>
+          <div>
+            <label className="v2-label">Waiting</label>
+            <input type="number" min={0} max={20} className="v2-input" value={f.max_waiting} onChange={e => set('max_waiting', e.target.value)} />
+          </div>
+        </div>
+        <p className="mt-2 text-[11px] text-ink-muted">
+          Inti = pemain utama · Maks Tim = total termasuk cadangan (mis. 6 inti + maks 9 = 3 cadangan) · Waiting = antrean per tim.
+        </p>
+      </div>
+
       <div>
         <label className="v2-label">Status</label>
         <div className="grid grid-cols-2 gap-2">
