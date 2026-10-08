@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { GalleryItem, Schedule } from '../lib/types'
-import { fmtDate, fmtTime } from '../lib/utils'
+import { fmtDate, fmtTime, scheduleSlug } from '../lib/utils'
 import { CLUB_INFO } from '../components-v2/info'
 
 const CAP = 24 // 4 tim x 6
@@ -83,7 +83,7 @@ export default function HomeV2() {
           return (
             <Link
               key={s.id}
-              to={`/jadwal/${s.id}`}
+              to={`/jadwal/${scheduleSlug(s, list)}`}
               style={{ animationDelay: `${i * 60}ms` }}
               className="v2-card group block animate-fade-up overflow-hidden p-0 transition hover:shadow-lift active:scale-[.99]"
             >

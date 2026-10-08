@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Schedule } from '../lib/types'
-import { fmtDate, fmtTime } from '../lib/utils'
+import { fmtDate, fmtTime, scheduleSlug } from '../lib/utils'
 import ScheduleFormV2 from '../components-v2/ScheduleFormV2'
 import Sheet from '../components-v2/Sheet'
 
@@ -92,7 +92,7 @@ export default function AdminDashboardV2() {
               </div>
 
               <div className="grid grid-cols-3 gap-2 border-t border-slate-100 p-3">
-                <Link to={`/admin/jadwal/${s.id}`} className="v2-btn v2-btn-sm">Lihat</Link>
+                <Link to={`/admin/jadwal/${scheduleSlug(s, list!)}`} className="v2-btn v2-btn-sm">Lihat</Link>
                 <button className="v2-btn v2-btn-ghost v2-btn-sm" onClick={() => setForm(s)}>Edit</button>
                 <button className="v2-btn v2-btn-ghost v2-btn-sm !text-rose-500 hover:!bg-rose-50" onClick={() => setDel(s)}>Hapus</button>
               </div>

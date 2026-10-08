@@ -11,6 +11,29 @@ export function waLink(phone: string): string {
   else if (!d.startsWith('62')) d = '62' + d
   return `https://wa.me/${d}`
 }
+
+/** true jika param URL berupa UUID (link lama), bukan slug tanggal. */
+export const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
+
+/**
+ * Slug halaman jadwal: tanggal murni (YYYY-MM-DD), atau `YYYY-MM-DD-game-N`
+ * untuk jadwal ke-N di tanggal yang sama (N>=2). `all` adalah seluruh jadwal
+ * (dipakai menentukan urutan game di tanggal yang sama).
+ */
+export function scheduleSlug(s: { id: string; date: string }, all: { id: string; date: string }[]): string {
+  const sameDay = all
+    .filter(x => x.date === s.date)
+    .sort((a, b) => a.id.localeCompare(b.id))
+  const idx = sameDay.findIndex(x => x.id === s.id)
+  return idx <= 0 ? s.date : `${s.date}-game-${idx + 1}`
+}
+
+/** Parse slug -> { date, game } (game 1-based, default 1). Mengembalikan null jika bukan slug tanggal. */
+export function parseScheduleSlug(slug: string): { date: string; game: number } | null {
+  const m = slug.match(/^(\d{4}-\d{2}-\d{2})(?:-game-(\d+))?$/)
+  if (!m) return null
+  return { date: m[1], game: m[2] ? parseInt(m[2], 10) : 1 }
+}
 const ERR = 'Terjadi kesalahan. Silakan coba lagi.'
 const NET = 'Tidak dapat terhubung. Periksa koneksi internet kamu dan coba lagi.'
 /** Mengembalikan null jika berhasil, atau pesan error Bahasa Indonesia. */

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { type Player, type Position, type Schedule, type Team } from '../lib/types'
-import { fmtDate, fmtTime, registerPlayer, waLink } from '../lib/utils'
+import { fmtDate, fmtTime, registerPlayer, waLink, isUuid, parseScheduleSlug } from '../lib/utils'
 import { POSITIONS, MAX_PER_TEAM } from '../lib/types'
 import { TEAM_THEME } from '../components-v2/theme'
 import TeamCardV2 from '../components-v2/TeamCardV2'
@@ -34,13 +34,24 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
   const [done, setDone] = useState<Team | null>(null)
 
   const load = useCallback(async () => {
-    const [s, p] = await Promise.all([
-      supabase.from('schedules').select('*').eq('id', id!).maybeSingle(),
-      supabase.from('players').select('*').eq('schedule_id', id!).order('created_at'),
-    ])
-    if (s.error || p.error) { console.error(s.error ?? p.error); return setState('error') }
-    if (!s.data) return setState('missing')
-    setSchedule(s.data as Schedule); setPlayers(p.data as Player[]); setState('ok')
+    // Resolve param: bisa UUID (link lama) atau slug tanggal (YYYY-MM-DD / ...-game-N).
+    let sched: Schedule | null = null
+    if (isUuid(id!)) {
+      const s = await supabase.from('schedules').select('*').eq('id', id!).maybeSingle()
+      if (s.error) { console.error(s.error); return setState('error') }
+      sched = (s.data as Schedule) ?? null
+    } else {
+      const parsed = parseScheduleSlug(id!)
+      if (!parsed) return setState('missing')
+      const s = await supabase.from('schedules').select('*').eq('date', parsed.date).order('id')
+      if (s.error) { console.error(s.error); return setState('error') }
+      const rows = (s.data as Schedule[]) ?? []
+      sched = rows[parsed.game - 1] ?? null // game 1-based; urut by id (sama dgn scheduleSlug)
+    }
+    if (!sched) return setState('missing')
+    const p = await supabase.from('players').select('*').eq('schedule_id', sched.id).order('created_at')
+    if (p.error) { console.error(p.error); return setState('error') }
+    setSchedule(sched); setPlayers(p.data as Player[]); setState('ok')
   }, [id])
 
   useEffect(() => {
@@ -53,8 +64,9 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
 
   const open = (t: Team) => { setJoin(t); setTeam(t); setName(''); setPhone(''); setPosition('spiker'); setNewbie(false); setErr(''); setDone(null) }
   async function submit() {
+    if (!schedule) return
     setBusy(true); setErr('')
-    const e = await registerPlayer(id!, team, name, phone, position, newbie)
+    const e = await registerPlayer(schedule.id, team, name, phone, position, newbie)
     setBusy(false)
     if (e) return setErr(e)
     setDone(team); load()
