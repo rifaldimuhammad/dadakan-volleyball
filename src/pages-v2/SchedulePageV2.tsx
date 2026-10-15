@@ -211,6 +211,7 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
   // Ringkasan DP (hitung status efektif: unpaid lewat tenggat -> expired secara visual).
   const activePlayers = players.filter(p => p.roster !== 'waiting')
   const dpPaid = activePlayers.filter(p => effectiveDpStatus(p, schedule) === 'paid').length
+  const dpLunas = activePlayers.filter(p => effectiveDpStatus(p, schedule) === 'paid_full').length
   const dpUnpaid = activePlayers.filter(p => effectiveDpStatus(p, schedule) === 'unpaid').length
   const dpExpired = activePlayers.filter(p => effectiveDpStatus(p, schedule) === 'expired').length
   const dpCancelled = players.filter(p => p.dp_status === 'cancelled').length
@@ -258,11 +259,11 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
                 <button onClick={openLog} className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12px] font-bold text-ink-muted transition hover:bg-slate-50 active:scale-95">🕑 Riwayat</button>
               )}
             </div>
-            <div className="grid grid-cols-4 gap-2 px-4 py-4 text-center">
-              {([['paid', dpPaid], ['unpaid', dpUnpaid], ['expired', dpExpired], ['cancelled', dpCancelled]] as const).map(([k, n]) => (
-                <div key={k} className={`rounded-xl px-2 py-2 ring-1 ${DP_STATUS[k].chip}`}>
+            <div className="grid grid-cols-5 gap-1.5 px-4 py-4 text-center">
+              {([['unpaid', dpUnpaid], ['paid', dpPaid], ['paid_full', dpLunas], ['expired', dpExpired], ['cancelled', dpCancelled]] as const).map(([k, n]) => (
+                <div key={k} className={`rounded-xl px-1.5 py-2 ring-1 ${DP_STATUS[k].chip}`}>
                   <p className="text-lg font-black leading-none">{n}</p>
-                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wide">{DP_STATUS[k].short}</p>
+                  <p className="mt-1 text-[9px] font-bold uppercase tracking-wide">{DP_STATUS[k].short}</p>
                 </div>
               ))}
             </div>
@@ -460,9 +461,9 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
           </div>
 
           <div>
-            <label className="v2-label">Status DP</label>
+            <label className="v2-label">Status Pembayaran</label>
             <div className="grid grid-cols-2 gap-2">
-              {(['paid', 'unpaid', 'expired', 'cancelled'] as const).map(s => {
+              {(['unpaid', 'paid', 'paid_full', 'expired', 'cancelled'] as const).map(s => {
                 const meta = DP_STATUS[s]
                 const sel = eDp === s
                 return (
@@ -474,14 +475,20 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
                 )
               })}
             </div>
-            {eDp !== 'paid' && (
+            {(eDp === 'unpaid' || eDp === 'expired') && (
               <button type="button" onClick={() => setEDp('paid')}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-black text-white shadow-soft transition active:scale-[0.99]">
-                ✅ Konfirmasi DP sekarang
+                🟢 Konfirmasi DP sekarang
+              </button>
+            )}
+            {eDp === 'paid' && (
+              <button type="button" onClick={() => setEDp('paid_full')}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-court-600 px-4 py-3 text-sm font-black text-white shadow-soft transition active:scale-[0.99]">
+                ✅ Tandai Lunas (bayar penuh)
               </button>
             )}
             <p className="mt-1.5 text-[12px] text-ink-muted">
-              Belum DP = sudah daftar, belum bayar · Sudah DP = pembayaran dikonfirmasi, slot aman · Expired = lewat tenggat · Batal = tidak jadi ikut (data tetap disimpan).
+              Belum DP = belum bayar · Sudah DP = DP dikonfirmasi, slot aman · Lunas = HTM dibayar penuh · Expired = lewat tenggat · Batal = tidak jadi ikut (data tetap disimpan).
             </p>
           </div>
 
@@ -616,7 +623,7 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
           ) : (
             <ol className="max-h-[60vh] space-y-1.5 overflow-y-auto">
               {log.map(ev => {
-                const ico: Record<string, string> = { register: '➕', dp_confirm: '✅', dp_unpaid: '↩️', expire: '⏰', cancel: '⚫', uncancel: '♻️', move_team: '🔀', move_roster: '🔁', delete: '🗑️' }
+                const ico: Record<string, string> = { register: '➕', dp_confirm: '🟢', lunas: '✅', dp_unpaid: '↩️', expire: '⏰', cancel: '⚫', uncancel: '♻️', move_team: '🔀', move_roster: '🔁', delete: '🗑️' }
                 return (
                   <li key={ev.id} className="flex items-start gap-2.5 rounded-xl bg-slate-50 px-3 py-2">
                     <span className="mt-0.5 shrink-0 text-[15px]">{ico[ev.kind] ?? '•'}</span>

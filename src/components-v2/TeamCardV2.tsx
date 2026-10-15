@@ -27,7 +27,7 @@ export default function TeamCardV2({ team, players, core: coreSize, maxTeam, sch
   const noSetter = core.filter(p => p.position === 'setter').length === 0 && core.length > 0
   const reserveSlots = Math.max(0, maxTeam - coreSize)
   const showDp = dpEnabled(schedule)
-  const paidCount = showDp ? players.filter(p => effectiveDpStatus(p, schedule) === 'paid').length : 0
+  const paidCount = showDp ? players.filter(p => { const e = effectiveDpStatus(p, schedule); return e === 'paid' || e === 'paid_full' }).length : 0
 
   const slot = (p: Player | undefined, index: number, kind: 'core' | 'reserve') => {
     const eff = p && showDp ? effectiveDpStatus(p, schedule) : null

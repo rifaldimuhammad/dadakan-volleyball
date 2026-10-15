@@ -25,7 +25,7 @@ export default function AdminDashboardV2() {
       const e = c[r.schedule_id] ?? (c[r.schedule_id] = { active: 0, waiting: 0, paid: 0 })
       if (r.roster === 'waiting') e.waiting++
       else e.active++
-      if (r.dp_status === 'paid' && r.roster !== 'waiting') e.paid++
+      if ((r.dp_status === 'paid' || r.dp_status === 'paid_full') && r.roster !== 'waiting') e.paid++
     })
     setCounts(c); setList(s.data as Schedule[])
   }, [])
