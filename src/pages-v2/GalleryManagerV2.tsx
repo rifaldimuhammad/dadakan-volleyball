@@ -52,7 +52,7 @@ export default function GalleryManagerV2() {
   return (
     <div className="v2-root min-h-screen bg-canvas pb-28">
       <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3.5">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5">
           <div className="flex items-center gap-2">
             <Link to="/admin" className="grid h-8 w-8 place-items-center rounded-xl text-ink-muted transition hover:bg-slate-100">←</Link>
             <h1 className="text-[15px] font-extrabold tracking-tight text-ink">Kelola Galeri</h1>
@@ -61,7 +61,7 @@ export default function GalleryManagerV2() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-md space-y-4 px-4 pt-5">
+      <main className="mx-auto max-w-5xl space-y-4 px-4 pt-5">
         {err && <div className="v2-card p-4 text-center text-rose-600">{err}</div>}
 
         {!items && !err && <div className="grid grid-cols-2 gap-3">{[0, 1, 2, 3].map(i => <div key={i} className="v2-skeleton h-32" />)}</div>}
@@ -101,7 +101,7 @@ export default function GalleryManagerV2() {
       </main>
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/70 bg-white/90 px-4 py-3 backdrop-blur">
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-5xl">
           <button className="v2-btn" onClick={() => setAdd(true)}>+ Tambah ke Galeri</button>
         </div>
       </div>

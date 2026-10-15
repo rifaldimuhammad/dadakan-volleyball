@@ -9,7 +9,7 @@ import Sheet from '../components-v2/Sheet'
 export default function AdminDashboardV2() {
   const nav = useNavigate()
   const [list, setList] = useState<Schedule[] | null>(null)
-  const [counts, setCounts] = useState<Record<string, { active: number; waiting: number }>>({})
+  const [counts, setCounts] = useState<Record<string, { active: number; waiting: number; paid: number }>>({})
   const [form, setForm] = useState<Schedule | 'new' | null>(null)
   const [del, setDel] = useState<Schedule | null>(null)
   const [err, setErr] = useState('')
@@ -17,14 +17,15 @@ export default function AdminDashboardV2() {
   const load = useCallback(async () => {
     const [s, p] = await Promise.all([
       supabase.from('schedules').select('*').order('date', { ascending: false }),
-      supabase.from('players').select('schedule_id, roster'),
+      supabase.from('players').select('schedule_id, roster, dp_status'),
     ])
     if (s.error || p.error) { console.error(s.error ?? p.error); return setErr('Terjadi kesalahan. Silakan coba lagi.') }
-    const c: Record<string, { active: number; waiting: number }> = {}
-    p.data.forEach((r: { schedule_id: string; roster?: string }) => {
-      const e = c[r.schedule_id] ?? (c[r.schedule_id] = { active: 0, waiting: 0 })
+    const c: Record<string, { active: number; waiting: number; paid: number }> = {}
+    p.data.forEach((r: { schedule_id: string; roster?: string; dp_status?: string }) => {
+      const e = c[r.schedule_id] ?? (c[r.schedule_id] = { active: 0, waiting: 0, paid: 0 })
       if (r.roster === 'waiting') e.waiting++
       else e.active++
+      if (r.dp_status === 'paid' && r.roster !== 'waiting') e.paid++
     })
     setCounts(c); setList(s.data as Schedule[])
   }, [])
@@ -42,7 +43,7 @@ export default function AdminDashboardV2() {
     <div className="v2-root min-h-screen bg-canvas pb-24">
       {/* top bar */}
       <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3.5">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5">
           <div className="flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-court-600 text-white">🏐</span>
             <h1 className="text-[15px] font-extrabold tracking-tight text-ink">Dashboard Admin</h1>
@@ -58,7 +59,7 @@ export default function AdminDashboardV2() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-md space-y-4 px-4 pt-5">
+      <main className="mx-auto max-w-5xl space-y-4 px-4 pt-5">
         {err && <div className="v2-card p-4 text-center text-rose-600">{err}</div>}
 
         {!list && !err && (
@@ -73,9 +74,12 @@ export default function AdminDashboardV2() {
           </div>
         )}
 
-        {list?.map((s, i) => {
-          const cnt = counts[s.id] ?? { active: 0, waiting: 0 }
+        {list && list.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2">
+        {list.map((s, i) => {
+          const cnt = counts[s.id] ?? { active: 0, waiting: 0, paid: 0 }
           const cap = 4 * capacityOf(s).maxTeam
+          const dpOn = (s.dp_amount ?? 0) > 0
           const active = s.status === 'active'
           return (
             <div key={s.id} style={{ animationDelay: `${i * 50}ms` }} className="v2-card animate-fade-up overflow-hidden p-0">
@@ -97,6 +101,9 @@ export default function AdminDashboardV2() {
                 {cnt.waiting > 0 && (
                   <span className="v2-chip bg-slate-100 text-ink-muted">⏳ {cnt.waiting} waiting</span>
                 )}
+                {dpOn && (
+                  <span className="v2-chip bg-emerald-50 text-emerald-700" title="Pemain yang sudah konfirmasi DP">💵 {cnt.paid}/{cnt.active} DP</span>
+                )}
               </div>
 
               <div className="grid grid-cols-3 gap-2 border-t border-slate-100 p-3">
@@ -107,11 +114,13 @@ export default function AdminDashboardV2() {
             </div>
           )
         })}
+        </div>
+        )}
       </main>
 
       {/* floating add button */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/70 bg-white/90 px-4 py-3 backdrop-blur">
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-5xl">
           <button className="v2-btn" onClick={() => setForm('new')}>+ Tambah Jadwal</button>
         </div>
       </div>

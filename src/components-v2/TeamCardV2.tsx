@@ -1,4 +1,6 @@
-import { type Player, type Team } from '../lib/types'
+import { type Player, type Schedule, type Team } from '../lib/types'
+import { DP_STATUS } from '../lib/types'
+import { dpEnabled, effectiveDpStatus } from '../lib/utils'
 import { TEAM_THEME } from './theme'
 
 interface Props {
@@ -6,13 +8,14 @@ interface Props {
   players: Player[]            // hanya core + reserve tim ini (bukan waiting)
   core: number                // jumlah slot inti (dari jadwal)
   maxTeam: number             // kapasitas total tim (dari jadwal)
+  schedule?: Schedule | null  // untuk status DP (nominal + deadline)
   waitingFull?: boolean       // true jika waiting list tim ini juga penuh
   admin?: boolean
   onJoin: (t: Team) => void
   onEdit?: (p: Player) => void
 }
 
-export default function TeamCardV2({ team, players, core: coreSize, maxTeam, waitingFull, admin, onJoin, onEdit }: Props) {
+export default function TeamCardV2({ team, players, core: coreSize, maxTeam, schedule, waitingFull, admin, onJoin, onEdit }: Props) {
   const t = TEAM_THEME[team]
   // Urutkan: core dulu, lalu reserve, masing-masing by created_at.
   const core = players.filter(p => p.roster === 'core')
@@ -23,8 +26,13 @@ export default function TeamCardV2({ team, players, core: coreSize, maxTeam, wai
   const newbieCount = players.filter(p => p.is_newbie).length
   const noSetter = core.filter(p => p.position === 'setter').length === 0 && core.length > 0
   const reserveSlots = Math.max(0, maxTeam - coreSize)
+  const showDp = dpEnabled(schedule)
+  const paidCount = showDp ? players.filter(p => effectiveDpStatus(p, schedule) === 'paid').length : 0
 
-  const slot = (p: Player | undefined, index: number, kind: 'core' | 'reserve') => (
+  const slot = (p: Player | undefined, index: number, kind: 'core' | 'reserve') => {
+    const eff = p && showDp ? effectiveDpStatus(p, schedule) : null
+    const meta = eff ? DP_STATUS[eff] : null
+    return (
     <li
       key={`${kind}-${index}`}
       className={`flex min-h-[2.75rem] items-center gap-3 rounded-xl px-3 py-2 transition
@@ -35,29 +43,27 @@ export default function TeamCardV2({ team, players, core: coreSize, maxTeam, wai
         {kind === 'core' ? index + 1 : index + 1 + coreSize}
       </span>
       <span className={`flex-1 truncate text-[14px] ${p ? 'font-semibold text-ink' : 'text-slate-300'}`}>
-        <span className="inline-flex items-center gap-1.5">
+        <span className="inline-flex flex-wrap items-center gap-1.5">
           {p ? p.name : 'Slot kosong'}
           {p && p.position === 'setter' && (
-            <span title="Toser / Setter" className="inline-flex shrink-0 items-center gap-1 rounded-full bg-court-100 px-1.5 py-0.5 text-[10px] font-bold text-court-700">🙌 Toser</span>
+            <span title="Toser / Setter" className="inline-flex shrink-0 items-center gap-1 rounded-md bg-court-100 px-1.5 py-0.5 text-[10px] font-bold text-court-700">🙌 Toser</span>
           )}
           {p && p.is_newbie && (
-            <span title="Pemain pemula" className="inline-flex shrink-0 items-center gap-1 rounded-full bg-lime-100 px-1.5 py-0.5 text-[10px] font-bold text-lime-700">🌱 Newbie</span>
+            <span title="Pemain pemula" className="inline-flex shrink-0 items-center gap-1 rounded-md bg-lime-100 px-1.5 py-0.5 text-[10px] font-bold text-lime-700">🌱 Newbie</span>
+          )}
+          {meta && (
+            <span title={`Status DP: ${meta.label}`} className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ring-1 ${meta.chip}`}>
+              {meta.emoji} {meta.short}
+            </span>
           )}
         </span>
       </span>
-      {p && p.paid && (
-        <span title="Sudah bayar" className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[11px] font-bold text-white">
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3" aria-hidden="true">
-            <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.5 7.5a1 1 0 01-1.42 0l-3.5-3.5a1 1 0 111.42-1.42l2.79 2.79 6.79-6.79a1 1 0 011.42 0z" clipRule="evenodd" />
-          </svg>
-          Sudah bayar
-        </span>
-      )}
       {admin && p && (
         <button onClick={() => onEdit?.(p)} className="shrink-0 rounded-lg px-2.5 py-1 text-[12px] font-bold text-court-600 transition hover:bg-court-50 active:scale-95">Edit</button>
       )}
     </li>
-  )
+    )
+  }
 
   // Cadangan: tampilkan slot HANYA jika inti sudah penuh atau sudah ada cadangan.
   const showReserve = core.length >= coreSize || reserve.length > 0
@@ -73,10 +79,11 @@ export default function TeamCardV2({ team, players, core: coreSize, maxTeam, wai
             <p className="text-[12px] text-ink-muted">{count} dari {maxTeam} pemain{reserve.length > 0 ? ` · ${reserve.length} cadangan` : ''}</p>
           </div>
         </div>
-        {(noSetter || newbieCount > 0 || full) && (
+        {(noSetter || newbieCount > 0 || full || showDp) && (
           <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
             {noSetter && <span className="v2-chip bg-amber-100 text-amber-700" title="Tim ini belum punya toser/setter">Butuh toser</span>}
             {newbieCount > 0 && <span className="v2-chip bg-court-100 text-court-700" title="Jumlah pemain pemula di tim ini">🌱 {newbieCount} newbie</span>}
+            {showDp && <span className="v2-chip bg-emerald-100 text-emerald-700" title="Jumlah pemain yang sudah konfirmasi DP">💵 {paidCount}/{count} DP</span>}
             {full && <span className="v2-chip bg-slate-100 text-ink-muted">Penuh</span>}
           </div>
         )}

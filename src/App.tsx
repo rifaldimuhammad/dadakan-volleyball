@@ -17,6 +17,7 @@ export default function App() {
     <Routes>
       {/* === Versi utama (final) === */}
       <Route path="/" element={<Home />} />
+      <Route path="/jadwal" element={<Navigate to="/" replace />} />
       <Route path="/jadwal/:id" element={<SchedulePage />} />
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />

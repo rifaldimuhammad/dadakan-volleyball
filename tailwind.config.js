@@ -3,8 +3,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Plus Jakarta Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        display: ['Clash Display', 'Plus Jakarta Sans', 'sans-serif'],
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       colors: {
         ink: {
@@ -31,8 +31,8 @@ export default {
         glow: '0 10px 40px -8px rgba(59,99,255,0.45)',
       },
       borderRadius: {
-        '2xl': '1.25rem',
-        '3xl': '1.75rem',
+        '2xl': '0.875rem',
+        '3xl': '1.125rem',
       },
       keyframes: {
         'fade-up': {

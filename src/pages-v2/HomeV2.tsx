@@ -42,7 +42,7 @@ export default function HomeV2() {
       <div className="relative overflow-hidden bg-gradient-to-br from-court-600 via-court-600 to-indigo-700 px-5 pb-16 pt-12 text-white">
         <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
         <div className="pointer-events-none absolute -bottom-16 -left-10 h-56 w-56 rounded-full bg-sun-400/20 blur-3xl" />
-        <div className="relative mx-auto max-w-md">
+        <div className="relative mx-auto max-w-5xl">
           <div className="flex items-center justify-between">
             <span className="v2-chip bg-white/15 text-white backdrop-blur">🏐 Open Session</span>
             <a
@@ -52,10 +52,10 @@ export default function HomeV2() {
               <span>📸</span> Instagram
             </a>
           </div>
-          <h1 className="mt-3 font-display text-[32px] font-extrabold leading-[1.05] tracking-tight">
+          <h1 className="mt-3 text-[32px] font-extrabold leading-[1.05] tracking-tight sm:text-[44px]">
             Dadakan<br />Volleyball
           </h1>
-          <p className="mt-2 max-w-[18rem] text-[15px] text-white/80">
+          <p className="mt-2 max-w-[18rem] text-[15px] text-white/80 sm:max-w-md sm:text-[17px]">
             Pilih jadwal main, masuk ke timmu, dan amankan slot sebelum penuh.
           </p>
           <div className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-white/15 px-3.5 py-2 text-sm font-semibold backdrop-blur">
@@ -65,11 +65,11 @@ export default function HomeV2() {
       </div>
 
       {/* content */}
-      <main className="relative z-10 mx-auto -mt-8 max-w-md space-y-4 px-4 pb-16">
+      <main className="relative z-10 mx-auto -mt-8 max-w-5xl space-y-4 px-4 pb-16">
         {err && <div className="v2-card p-4 text-center text-rose-600">{err}</div>}
 
         {!list && !err && (
-          <div className="space-y-4">{[0, 1].map(i => <div key={i} className="v2-skeleton h-32" />)}</div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map(i => <div key={i} className="v2-skeleton h-32" />)}</div>
         )}
 
         {list?.length === 0 && (
@@ -80,7 +80,9 @@ export default function HomeV2() {
           </div>
         )}
 
-        {list?.map((s, i) => {
+        {list && list.length > 0 && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {list.map((s, i) => {
           const n = counts[s.id] ?? 0
           const cap = TEAMS * capacityOf(s).maxTeam
           const full = n >= cap
@@ -133,9 +135,12 @@ export default function HomeV2() {
             </Link>
           )
         })}
+        </div>
+        )}
 
         {/* ===== PEMBAYARAN ===== */}
-        <section className="v2-card animate-fade-up space-y-3 p-5">
+        <section className="v2-card animate-fade-up space-y-3 p-5 md:grid md:grid-cols-2 md:gap-6 md:space-y-0">
+          <div className="space-y-3">
           <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">💳 Pembayaran</h2>
           <div className="flex items-center gap-4">
             <button onClick={() => setQrisOpen(true)} className="shrink-0 rounded-2xl border border-slate-200 bg-white p-2 shadow-soft transition active:scale-95">
@@ -147,6 +152,10 @@ export default function HomeV2() {
               <p className="text-ink-muted">HTM Slot <b className="text-ink">{CLUB_INFO.htm}</b></p>
               <button onClick={() => setQrisOpen(true)} className="mt-1 text-[13px] font-bold text-court-600">Perbesar QR →</button>
             </div>
+          </div>
+          </div>
+          <div className="hidden items-center justify-center rounded-2xl bg-court-50 p-6 text-center md:flex">
+            <p className="text-sm font-semibold text-court-700">Bayar HTM saat datang atau transfer QRIS sebelum main. Simpan bukti untuk konfirmasi admin.</p>
           </div>
         </section>
 

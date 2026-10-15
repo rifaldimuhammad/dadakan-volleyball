@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Schedule } from '../lib/types'
+import { toDatetimeLocal } from '../lib/utils'
 
 export default function ScheduleFormV2({
   initial, onDone, onCancel,
@@ -15,6 +16,8 @@ export default function ScheduleFormV2({
     core_size: String(initial?.core_size ?? 6),
     max_per_team: String(initial?.max_per_team ?? 9),
     max_waiting: String(initial?.max_waiting ?? 5),
+    dp_amount: String(initial?.dp_amount ?? 0),
+    dp_deadline: toDatetimeLocal(initial?.dp_deadline),
   })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -28,11 +31,15 @@ export default function ScheduleFormV2({
     if (!Number.isFinite(core) || core < 1) return setErr('Jumlah pemain inti minimal 1.')
     if (!Number.isFinite(maxTeam) || maxTeam < core) return setErr('Maks pemain per tim tidak boleh kurang dari jumlah inti.')
     if (!Number.isFinite(maxWait) || maxWait < 0) return setErr('Maks waiting list tidak boleh negatif.')
+    const dpAmount = parseInt(f.dp_amount, 10) || 0
+    if (dpAmount < 0) return setErr('Nominal DP tidak boleh negatif.')
     setBusy(true); setErr('')
     const payload = {
       date: f.date, start_time: f.start_time, end_time: f.end_time, status: f.status,
       location: f.location.trim(), maps_url: f.maps_url.trim() || null,
       core_size: core, max_per_team: maxTeam, max_waiting: maxWait,
+      dp_amount: dpAmount,
+      dp_deadline: f.dp_deadline ? new Date(f.dp_deadline).toISOString() : null,
       updated_at: new Date().toISOString(),
     }
     const { error } = initial
@@ -87,6 +94,27 @@ export default function ScheduleFormV2({
         </div>
         <p className="mt-2 text-[11px] text-ink-muted">
           Inti = pemain utama · Maks Tim = total termasuk cadangan (mis. 6 inti + maks 9 = 3 cadangan) · Waiting = antrean per tim.
+        </p>
+      </div>
+
+      {/* down payment (DP) */}
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-3">
+        <p className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-ink">💵 Down Payment (DP)</p>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="v2-label">Nominal DP (Rp)</label>
+            <input type="number" min={0} step={1000} className="v2-input" placeholder="0 = tanpa DP"
+              value={f.dp_amount} onChange={e => set('dp_amount', e.target.value)} />
+          </div>
+          <div>
+            <label className="v2-label">Batas Waktu DP</label>
+            <input type="datetime-local" className="v2-input"
+              value={f.dp_deadline} onChange={e => set('dp_deadline', e.target.value)} />
+          </div>
+        </div>
+        <p className="mt-2 text-[11px] text-ink-muted">
+          Isi nominal &gt; 0 untuk mengaktifkan sistem DP. Pemain baru berstatus <b>Belum DP</b> sampai admin konfirmasi.
+          Lewat batas waktu, pemain belum-DP ditandai <b>Expired</b> (panitia yang memutuskan tindakan). Kosongkan batas waktu bila tanpa tenggat.
         </p>
       </div>
 

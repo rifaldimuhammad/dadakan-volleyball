@@ -1,8 +1,19 @@
 export type Team = 'red' | 'blue' | 'yellow' | 'green'
-export interface Schedule { id: string; date: string; start_time: string; end_time: string; location: string; status: 'active' | 'inactive'; maps_url?: string | null; core_size?: number | null; max_per_team?: number | null; max_waiting?: number | null }
+export interface Schedule { id: string; date: string; start_time: string; end_time: string; location: string; status: 'active' | 'inactive'; maps_url?: string | null; core_size?: number | null; max_per_team?: number | null; max_waiting?: number | null; dp_amount?: number | null; dp_deadline?: string | null }
 export type Position = 'setter' | 'spiker'
 export type Roster = 'core' | 'reserve' | 'waiting'
-export interface Player { id: string; schedule_id: string; team: Team; name: string; phone: string | null; paid: boolean; position: Position; is_newbie: boolean; roster: Roster; created_at: string }
+/** Status pembayaran DP pemain. */
+export type DpStatus = 'unpaid' | 'paid' | 'cancelled' | 'expired'
+export interface Player { id: string; schedule_id: string; team: Team; name: string; phone: string | null; paid: boolean; position: Position; is_newbie: boolean; roster: Roster; dp_status: DpStatus; dp_confirmed_at?: string | null; created_at: string }
+/** Satu baris audit log (tabel player_events). */
+export interface PlayerEvent { id: string; player_id: string | null; schedule_id: string | null; player_name: string | null; kind: string; detail: string | null; actor: string; created_at: string }
+/** Metadata tampilan tiap status DP. */
+export const DP_STATUS: Record<DpStatus, { label: string; short: string; emoji: string; chip: string; dot: string }> = {
+  unpaid:    { label: 'Belum DP',  short: 'Belum DP',  emoji: '🔴', chip: 'bg-red-50 text-red-700 ring-red-500/20',          dot: 'bg-red-500' },
+  paid:      { label: 'Sudah DP',  short: 'Sudah DP',  emoji: '🟢', chip: 'bg-emerald-50 text-emerald-700 ring-emerald-500/20', dot: 'bg-emerald-500' },
+  cancelled: { label: 'Batal',     short: 'Batal',     emoji: '⚫', chip: 'bg-slate-100 text-slate-600 ring-slate-400/20',     dot: 'bg-slate-400' },
+  expired:   { label: 'Expired',   short: 'Expired',   emoji: '⏰', chip: 'bg-amber-50 text-amber-700 ring-amber-500/20',       dot: 'bg-amber-500' },
+}
 export const POSITIONS: { key: Position; label: string; short: string; emoji: string }[] = [
   { key: 'spiker', label: 'Pemukul', short: 'Pemukul', emoji: '💥' },
   { key: 'setter', label: 'Toser / Setter', short: 'Toser', emoji: '🙌' },

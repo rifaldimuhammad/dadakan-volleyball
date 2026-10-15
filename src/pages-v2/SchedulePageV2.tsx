@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { type Player, type Position, type Schedule, type Team } from '../lib/types'
-import { fmtDate, fmtTime, registerPlayer, waLink, isUuid, parseScheduleSlug, assignFromWaiting, swapPlayers, capacityOf } from '../lib/utils'
-import { POSITIONS } from '../lib/types'
+import { type DpStatus, type Player, type PlayerEvent, type Position, type Schedule, type Team } from '../lib/types'
+import { fmtDate, fmtTime, fmtDateTime, registerPlayer, waLink, isUuid, parseScheduleSlug, assignFromWaiting, swapPlayers, capacityOf, dpEnabled, effectiveDpStatus, fmtRupiah, dpCountdown } from '../lib/utils'
+import { POSITIONS, DP_STATUS } from '../lib/types'
 import { TEAM_THEME } from '../components-v2/theme'
 import TeamCardV2 from '../components-v2/TeamCardV2'
 import Sheet from '../components-v2/Sheet'
@@ -22,11 +22,15 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
   const [edit, setEdit] = useState<Player | null>(null)
   const [eTeam, setETeam] = useState<Team>('red')
   const [ePos, setEPos] = useState<Position>('spiker')
-  const [ePaid, setEPaid] = useState(false)
+  const [eDp, setEDp] = useState<DpStatus>('unpaid')
   const [eNewbie, setENewbie] = useState(false)
   const [eBusy, setEBusy] = useState(false)
   const [eErr, setEErr] = useState('')
   const [swapWith, setSwapWith] = useState<string>('')  // id pemain lawan untuk ditukar
+
+  // audit log (admin)
+  const [log, setLog] = useState<PlayerEvent[] | null>(null)
+  const [logOpen, setLogOpen] = useState(false)
 
   // assign-from-waiting popup
   const [assign, setAssign] = useState<Player | null>(null)
@@ -104,7 +108,7 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
 
   // ---- edit ----
   function openEdit(p: Player) {
-    setEdit(p); setETeam(p.team); setEPos(p.position); setEPaid(p.paid); setENewbie(p.is_newbie); setSwapWith(''); setEErr('')
+    setEdit(p); setETeam(p.team); setEPos(p.position); setEDp(p.dp_status); setENewbie(p.is_newbie); setSwapWith(''); setEErr('')
   }
   async function saveEdit() {
     if (!edit) return
@@ -141,11 +145,21 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
     }
 
     const { error } = await supabase.from('players')
-      .update({ team: eTeam, position: ePos, paid: ePaid, is_newbie: eNewbie, roster: newRoster })
+      .update({ team: eTeam, position: ePos, dp_status: eDp, is_newbie: eNewbie, roster: newRoster })
       .eq('id', edit.id)
     setEBusy(false)
     if (error) { console.error(error); return setEErr('Gagal menyimpan perubahan. Coba lagi.') }
     setEdit(null); load()
+  }
+
+  // ---- audit log ----
+  async function openLog() {
+    if (!schedule) return
+    setLogOpen(true); setLog(null)
+    const { data, error } = await supabase.from('player_events')
+      .select('*').eq('schedule_id', schedule.id).order('created_at', { ascending: false }).limit(100)
+    if (error) { console.error(error); setLog([]); return }
+    setLog((data as PlayerEvent[]) ?? [])
   }
 
   // ---- assign from waiting ----
@@ -173,7 +187,7 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
   if (state === 'loading')
     return (
       <div className="v2-root min-h-screen bg-canvas px-4 pt-6">
-        <div className="mx-auto max-w-md space-y-4">
+        <div className="mx-auto max-w-5xl space-y-4">
           <div className="v2-skeleton h-24" />
           {[0, 1, 2].map(i => <div key={i} className="v2-skeleton h-56" />)}
         </div>
@@ -193,12 +207,20 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
 
   const activeTotal = players.filter(p => p.roster !== 'waiting').length
   const joinToWaiting = teamFull(team)
+  const showDp = dpEnabled(schedule)
+  // Ringkasan DP (hitung status efektif: unpaid lewat tenggat -> expired secara visual).
+  const activePlayers = players.filter(p => p.roster !== 'waiting')
+  const dpPaid = activePlayers.filter(p => effectiveDpStatus(p, schedule) === 'paid').length
+  const dpUnpaid = activePlayers.filter(p => effectiveDpStatus(p, schedule) === 'unpaid').length
+  const dpExpired = activePlayers.filter(p => effectiveDpStatus(p, schedule) === 'expired').length
+  const dpCancelled = players.filter(p => p.dp_status === 'cancelled').length
+  const dl = dpCountdown(schedule.dp_deadline)
 
   return (
     <div className="v2-root min-h-screen bg-canvas pb-16">
       {/* header */}
       <div className="bg-gradient-to-br from-court-600 to-indigo-700 px-4 pb-10 pt-6 text-white">
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-5xl">
           <Link to={back} className="inline-flex items-center gap-1 text-sm font-medium text-white/80 transition hover:text-white"><span>←</span> Kembali</Link>
           <div className="mt-4 space-y-1">
             <h1 className="font-display text-2xl font-extrabold tracking-tight">{fmtDate(schedule.date)}</h1>
@@ -217,12 +239,48 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
       </div>
 
       {/* teams */}
-      <main className="mx-auto -mt-5 max-w-md space-y-4 px-4">
+      <main className="mx-auto -mt-5 max-w-5xl space-y-4 px-4">
+        {/* ringkasan DP */}
+        {showDp && (
+          <section className="v2-card animate-fade-up overflow-hidden">
+            <div className="flex items-center justify-between gap-2 px-4 pt-4">
+              <div className="flex items-center gap-2.5">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500 text-white text-sm font-black shadow-soft">💵</span>
+                <div>
+                  <h2 className="text-[15px] font-extrabold tracking-tight text-ink">Status DP</h2>
+                  <p className="text-[12px] text-ink-muted">
+                    {(schedule.dp_amount ?? 0) > 0 && <>DP {fmtRupiah(schedule.dp_amount!)} · </>}
+                    {dl ? <span className={dl.passed ? 'font-semibold text-amber-600' : ''}>Tenggat {dl.text}</span> : 'Tanpa tenggat'}
+                  </p>
+                </div>
+              </div>
+              {admin && (
+                <button onClick={openLog} className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12px] font-bold text-ink-muted transition hover:bg-slate-50 active:scale-95">🕑 Riwayat</button>
+              )}
+            </div>
+            <div className="grid grid-cols-4 gap-2 px-4 py-4 text-center">
+              {([['paid', dpPaid], ['unpaid', dpUnpaid], ['expired', dpExpired], ['cancelled', dpCancelled]] as const).map(([k, n]) => (
+                <div key={k} className={`rounded-xl px-2 py-2 ring-1 ${DP_STATUS[k].chip}`}>
+                  <p className="text-lg font-black leading-none">{n}</p>
+                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wide">{DP_STATUS[k].short}</p>
+                </div>
+              ))}
+            </div>
+            {dl?.passed && dpUnpaid === 0 && dpExpired > 0 && admin && (
+              <p className="mx-4 mb-4 rounded-xl bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-700">
+                ⏰ Tenggat lewat — {dpExpired} pemain belum DP ditandai Expired. Buka Edit untuk menggeser ke waiting / batalkan / perpanjang.
+              </p>
+            )}
+          </section>
+        )}
+
+        <div className="grid gap-4 md:grid-cols-2">
         {ORDER.map((key, i) => (
           <div key={key} style={{ animationDelay: `${i * 50}ms` }} className="animate-fade-up">
-            <TeamCardV2 team={key} admin={admin} players={players.filter(p => p.team === key && p.roster !== 'waiting')} core={cap.core} maxTeam={cap.maxTeam} waitingFull={waitingFullFor(key)} onJoin={open} onEdit={openEdit} />
+            <TeamCardV2 team={key} admin={admin} players={players.filter(p => p.team === key && p.roster !== 'waiting')} core={cap.core} maxTeam={cap.maxTeam} schedule={schedule} waitingFull={waitingFullFor(key)} onJoin={open} onEdit={openEdit} />
           </div>
         ))}
+        </div>
 
         {/* waiting list — per tim (maks {cap.maxWaiting}/tim) */}
         {(waitingList.length > 0 || admin) && (
@@ -251,18 +309,16 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
                       {q.map((p, i) => (
                         <li key={p.id} className="flex min-h-[2.75rem] items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
                           <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-slate-300 text-[11px] font-bold text-white">{i + 1}</span>
-                          <span className="flex-1 truncate text-[14px] font-semibold text-ink">
-                            <span className="inline-flex items-center gap-1.5">
-                              {p.name}
-                              {p.position === 'setter' && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-court-100 px-1.5 py-0.5 text-[10px] font-bold text-court-700">🙌 Toser</span>}
-                              {p.is_newbie && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-lime-100 px-1.5 py-0.5 text-[10px] font-bold text-lime-700">🌱 Newbie</span>}
+                          <span className="flex-1 min-w-0 text-[14px] font-semibold text-ink">
+                            <span className="flex flex-wrap items-center gap-1.5">
+                              <span className="truncate">{p.name}</span>
+                              {p.position === 'setter' && <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-court-100 px-1.5 py-0.5 text-[10px] font-bold text-court-700">🙌 Toser</span>}
+                              {p.is_newbie && <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-lime-100 px-1.5 py-0.5 text-[10px] font-bold text-lime-700">🌱 Newbie</span>}
                             </span>
+                            {admin && <span className="block text-[11px] font-normal text-ink-muted">⏳ masuk waiting {fmtDateTime(p.created_at)}</span>}
                           </span>
                           {admin && (
-                            <>
-                              <button onClick={() => openAssign(p)} className="rounded-lg px-2 py-1 text-[12px] font-bold text-court-600 transition hover:bg-court-50 active:scale-95">Masukkan</button>
-                              <button onClick={() => setDel(p)} className="rounded-lg px-2 py-1 text-[12px] font-bold text-rose-500 transition hover:bg-rose-50 active:scale-95">Hapus</button>
-                            </>
+                            <button onClick={() => openAssign(p)} className="shrink-0 rounded-lg px-2.5 py-1 text-[12px] font-bold text-court-600 transition hover:bg-court-50 active:scale-95">Update</button>
                           )}
                         </li>
                       ))}
@@ -296,6 +352,12 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
             </div>
           ) : (
             <>
+              {showDp && !admin && (
+                <div className="space-y-1 rounded-xl bg-emerald-50 px-3 py-2.5 text-[12px] font-medium text-emerald-700">
+                  <p>💵 Jadwal ini pakai <b>DP {(schedule.dp_amount ?? 0) > 0 ? fmtRupiah(schedule.dp_amount!) : ''}</b>. Setelah daftar, statusmu <b>Belum DP</b> sampai panitia mengonfirmasi transfermu.</p>
+                  {dl && <p className="font-normal text-emerald-600">Batas waktu DP: <b>{dl.text}</b>. Lewat tenggat, slot bisa ditawarkan ke pemain lain.</p>}
+                </div>
+              )}
               {joinToWaiting && !admin && (
                 <div className="space-y-1.5 rounded-xl bg-amber-50 px-3 py-2.5 text-[12px] font-medium text-amber-700">
                   <p>⏳ {th(team).label} sudah penuh ({cap.maxTeam}). Kamu akan masuk <b>waiting list</b> ({teamWaiting(team).length}/{cap.maxWaiting}).</p>
@@ -379,14 +441,48 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
             </a>
           ) : <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-ink-muted">Tidak ada nomor telepon.</p>}
 
+          {/* Riwayat tanggal: booking / masuk waiting / konfirmasi DP */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-[13px]">
+            <div className="flex items-center justify-between gap-3 py-0.5">
+              <span className="font-semibold text-ink-muted">
+                {edit.roster === 'waiting' ? '⏳ Masuk waiting' : '📝 Tanggal booking'}
+              </span>
+              <span className="font-bold text-ink">{fmtDateTime(edit.created_at) ?? '—'}</span>
+            </div>
+            {edit.roster !== 'waiting' && (
+              <div className="mt-1 flex items-center justify-between gap-3 border-t border-slate-200/70 py-0.5 pt-1.5">
+                <span className="font-semibold text-ink-muted">🟢 Konfirmasi DP</span>
+                <span className={`font-bold ${edit.dp_confirmed_at ? 'text-emerald-600' : 'text-ink-muted'}`}>
+                  {fmtDateTime(edit.dp_confirmed_at) ?? 'Belum DP'}
+                </span>
+              </div>
+            )}
+          </div>
+
           <div>
-            <label className="v2-label">Status Pembayaran</label>
-            <button type="button" onClick={() => setEPaid(v => !v)}
-              className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-sm font-bold transition
-                ${ePaid ? 'border-transparent bg-emerald-50 text-emerald-700 ring-2 ring-emerald-500/30' : 'border-slate-200 text-ink-muted hover:bg-slate-50'}`}>
-              <span className="inline-flex items-center gap-2">{ePaid ? '✅ Sudah bayar' : '⬜ Belum bayar'}</span>
-              <span className={`text-[11px] font-semibold ${ePaid ? 'text-emerald-600' : 'text-slate-400'}`}>ketuk untuk ubah</span>
-            </button>
+            <label className="v2-label">Status DP</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['paid', 'unpaid', 'expired', 'cancelled'] as const).map(s => {
+                const meta = DP_STATUS[s]
+                const sel = eDp === s
+                return (
+                  <button key={s} type="button" onClick={() => setEDp(s)}
+                    className={`flex items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm font-bold transition
+                      ${sel ? `border-transparent ring-2 ring-court-500/30 ${meta.chip}` : 'border-slate-200 text-ink-muted hover:bg-slate-50'}`}>
+                    <span>{meta.emoji}</span> {meta.label}
+                  </button>
+                )
+              })}
+            </div>
+            {eDp !== 'paid' && (
+              <button type="button" onClick={() => setEDp('paid')}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-black text-white shadow-soft transition active:scale-[0.99]">
+                ✅ Konfirmasi DP sekarang
+              </button>
+            )}
+            <p className="mt-1.5 text-[12px] text-ink-muted">
+              Belum DP = sudah daftar, belum bayar · Sudah DP = pembayaran dikonfirmasi, slot aman · Expired = lewat tenggat · Batal = tidak jadi ikut (data tetap disimpan).
+            </p>
           </div>
 
           <div>
@@ -479,7 +575,7 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
 
       {/* assign-from-waiting sheet (admin) */}
       {assign && (
-        <Sheet title="Masukkan ke Tim" subtitle={assign.name} onClose={() => setAssign(null)}>
+        <Sheet title="Update Pemain Waiting" subtitle={assign.name} onClose={() => setAssign(null)}>
           <p className="text-[13px] text-ink-soft">Pindahkan <b className="text-ink">{assign.name}</b> dari waiting list ke sebuah tim. Otomatis jadi inti kalau masih ada slot inti, atau cadangan.</p>
           <div>
             <label className="v2-label">Pilih Tim</label>
@@ -501,8 +597,43 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
           {aErr && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">{aErr}</p>}
           <div className="grid grid-cols-2 gap-3">
             <button className="v2-btn v2-btn-ghost" onClick={() => setAssign(null)}>Batal</button>
-            <button className="v2-btn" disabled={aBusy} onClick={saveAssign}>{aBusy ? 'Memproses…' : 'Masukkan'}</button>
+            <button className="v2-btn" disabled={aBusy} onClick={saveAssign}>{aBusy ? 'Memproses…' : 'Masukkan ke tim'}</button>
           </div>
+          <button type="button" onClick={() => { const p = assign; setAssign(null); setDel(p) }}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600 transition active:scale-[0.99]">
+            🗑️ Hapus dari waiting list
+          </button>
+        </Sheet>
+      )}
+
+      {/* audit log sheet (admin) */}
+      {logOpen && (
+        <Sheet title="Riwayat Perubahan" subtitle="DP, perpindahan tim & slot — terbaru di atas" onClose={() => setLogOpen(false)}>
+          {log === null ? (
+            <div className="space-y-2">{[0, 1, 2, 3].map(i => <div key={i} className="v2-skeleton h-12" />)}</div>
+          ) : log.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-3 py-6 text-center text-[13px] text-slate-400">Belum ada riwayat.</p>
+          ) : (
+            <ol className="max-h-[60vh] space-y-1.5 overflow-y-auto">
+              {log.map(ev => {
+                const ico: Record<string, string> = { register: '➕', dp_confirm: '✅', dp_unpaid: '↩️', expire: '⏰', cancel: '⚫', uncancel: '♻️', move_team: '🔀', move_roster: '🔁', delete: '🗑️' }
+                return (
+                  <li key={ev.id} className="flex items-start gap-2.5 rounded-xl bg-slate-50 px-3 py-2">
+                    <span className="mt-0.5 shrink-0 text-[15px]">{ico[ev.kind] ?? '•'}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-semibold text-ink">{ev.player_name ?? '—'}</p>
+                      <p className="text-[12px] text-ink-muted">{ev.detail}</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-[11px] font-medium text-slate-400">{new Date(ev.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                      <p className={`text-[10px] font-bold uppercase ${ev.actor === 'admin' ? 'text-court-500' : ev.actor === 'public' ? 'text-slate-400' : 'text-slate-300'}`}>{ev.actor}</p>
+                    </div>
+                  </li>
+                )
+              })}
+            </ol>
+          )}
+          <button className="v2-btn v2-btn-ghost" onClick={() => setLogOpen(false)}>Tutup</button>
         </Sheet>
       )}
 
