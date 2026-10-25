@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { type DpStatus, type Player, type PlayerEvent, type Position, type Schedule, type Team } from '../lib/types'
-import { fmtDate, fmtTime, fmtDateTime, registerPlayer, waLink, isUuid, parseScheduleSlug, assignFromWaiting, swapPlayers, capacityOf, dpEnabled, effectiveDpStatus, fmtRupiah, dpCountdown } from '../lib/utils'
+import { fmtDate, fmtTime, fmtDateTime, registerPlayer, waLink, isUuid, parseScheduleSlug, assignFromWaiting, swapPlayers, swapWaitingWithTeam, capacityOf, dpEnabled, effectiveDpStatus, fmtRupiah, dpCountdown } from '../lib/utils'
 import { POSITIONS, DP_STATUS } from '../lib/types'
 import { TEAM_THEME } from '../components-v2/theme'
 import TeamCardV2 from '../components-v2/TeamCardV2'
@@ -37,6 +37,10 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
   const [aTeam, setATeam] = useState<Team>('red')
   const [aBusy, setABusy] = useState(false)
   const [aErr, setAErr] = useState('')
+  // tukar waiting (paid/lunas) <-> pemain tim
+  const [swapTarget, setSwapTarget] = useState<string>('')
+  const [swBusy, setSwBusy] = useState(false)
+  const [aDpBusy, setADpBusy] = useState(false)
 
   // join form
   const [name, setName] = useState('')
@@ -167,7 +171,7 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
     setAssign(p)
     // default ke tim yang masih ada slot, kalau ada
     const firstOpen = ORDER.find(t => teamActive(t).length < cap.maxTeam) ?? p.team
-    setATeam(firstOpen); setAErr('')
+    setATeam(firstOpen); setAErr(''); setSwapTarget('')
   }
   async function saveAssign() {
     if (!assign) return
@@ -176,6 +180,25 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
     setABusy(false)
     if (e) return setAErr(e)
     setAssign(null); load()
+  }
+  async function saveSwap() {
+    if (!assign || !swapTarget) return
+    setSwBusy(true); setAErr('')
+    const e = await swapWaitingWithTeam(assign.id, swapTarget)
+    setSwBusy(false)
+    if (e) return setAErr(e)
+    setAssign(null); setSwapTarget(''); load()
+  }
+  // Konfirmasi DP / Lunas langsung dari popup Update-waiting.
+  async function setWaitingDp(status: DpStatus) {
+    if (!assign) return
+    setADpBusy(true); setAErr('')
+    const { error } = await supabase.from('players').update({ dp_status: status }).eq('id', assign.id)
+    setADpBusy(false)
+    if (error) { console.error(error); return setAErr('Gagal mengubah status DP. Coba lagi.') }
+    // Sinkronkan snapshot popup supaya panel Tukar langsung muncul tanpa tutup popup.
+    setAssign({ ...assign, dp_status: status })
+    load()
   }
 
   // kondisi tim yang dipilih di form, untuk aturan minimal 1 toser (hanya inti).
@@ -584,6 +607,40 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
       {assign && (
         <Sheet title="Update Pemain Waiting" subtitle={assign.name} onClose={() => setAssign(null)}>
           <p className="text-[13px] text-ink-soft">Pindahkan <b className="text-ink">{assign.name}</b> dari waiting list ke sebuah tim. Otomatis jadi inti kalau masih ada slot inti, atau cadangan.</p>
+
+          {/* Status DP pemain waiting — konfirmasi di sini biar bisa langsung ditukar */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="v2-label mb-0">Status pembayaran</span>
+              <span className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                assign.dp_status === 'paid_full' ? 'bg-court-100 text-court-700'
+                : assign.dp_status === 'paid' ? 'bg-emerald-100 text-emerald-700'
+                : assign.dp_status === 'cancelled' ? 'bg-slate-200 text-slate-600'
+                : assign.dp_status === 'expired' ? 'bg-amber-100 text-amber-700'
+                : 'bg-rose-100 text-rose-600'}`}>
+                {DP_STATUS[assign.dp_status]?.label ?? assign.dp_status}
+              </span>
+            </div>
+            {assign.dp_status !== 'paid' && assign.dp_status !== 'paid_full' && (
+              <p className="mt-1 text-[12px] text-ink-soft">Konfirmasi DP/Lunas dulu supaya pemain ini bisa <b className="text-ink">ditukar</b> dengan pemain tim.</p>
+            )}
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button type="button" disabled={aDpBusy || assign.dp_status === 'paid'} onClick={() => setWaitingDp('paid')}
+                className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] font-bold text-emerald-700 transition hover:bg-emerald-100 active:scale-[0.99] disabled:opacity-40">
+                🟢 Konfirmasi DP
+              </button>
+              <button type="button" disabled={aDpBusy || assign.dp_status === 'paid_full'} onClick={() => setWaitingDp('paid_full')}
+                className="rounded-xl border border-court-200 bg-court-50 px-3 py-2 text-[13px] font-bold text-court-700 transition hover:bg-court-100 active:scale-[0.99] disabled:opacity-40">
+                ✅ Tandai Lunas
+              </button>
+            </div>
+            {(assign.dp_status === 'paid' || assign.dp_status === 'paid_full') && (
+              <button type="button" disabled={aDpBusy} onClick={() => setWaitingDp('unpaid')}
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-ink-muted transition hover:bg-slate-50 active:scale-[0.99] disabled:opacity-40">
+                ↩️ Batalkan status DP (balik Belum DP)
+              </button>
+            )}
+          </div>
           <div>
             <label className="v2-label">Pilih Tim</label>
             <div className="grid grid-cols-2 gap-2">
@@ -606,6 +663,48 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
             <button className="v2-btn v2-btn-ghost" onClick={() => setAssign(null)}>Batal</button>
             <button className="v2-btn" disabled={aBusy} onClick={saveAssign}>{aBusy ? 'Memproses…' : 'Masukkan ke tim'}</button>
           </div>
+
+          {/* Tukar dengan pemain tim — hanya untuk waiting yang sudah DP / Lunas */}
+          {(assign.dp_status === 'paid' || assign.dp_status === 'paid_full') && (() => {
+            const teamPlayers = players.filter(p => p.roster === 'core' || p.roster === 'reserve')
+            return (
+              <div className="rounded-2xl border border-court-100 bg-court-50/50 p-3">
+                <label className="v2-label flex items-center gap-1.5">
+                  🔄 Tukar dengan pemain tim
+                  <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${assign.dp_status === 'paid_full' ? 'bg-court-100 text-court-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                    {assign.dp_status === 'paid_full' ? '✅ Lunas' : '🟢 Sudah DP'}
+                  </span>
+                </label>
+                <p className="mb-2 text-[12px] text-ink-soft"><b className="text-ink">{assign.name}</b> naik ke slot pemain terpilih; pemain itu turun ke waiting list. Datanya tidak dihapus.</p>
+                {teamPlayers.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-slate-200 bg-white/60 px-3 py-3 text-center text-[12px] text-slate-400">Belum ada pemain inti/cadangan untuk ditukar.</p>
+                ) : (
+                  <>
+                    <select className="v2-input" value={swapTarget} onChange={e => setSwapTarget(e.target.value)}>
+                      <option value="">Pilih pemain yang ditukar…</option>
+                      {ORDER.map(t => {
+                        const inTeam = teamPlayers.filter(p => p.team === t)
+                        if (inTeam.length === 0) return null
+                        return (
+                          <optgroup key={t} label={th(t).label}>
+                            {inTeam.map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} · {p.roster === 'core' ? 'inti' : 'cadangan'}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )
+                      })}
+                    </select>
+                    <button className="v2-btn mt-2" disabled={!swapTarget || swBusy} onClick={saveSwap}>
+                      {swBusy ? 'Menukar…' : 'Tukar sekarang'}
+                    </button>
+                  </>
+                )}
+              </div>
+            )
+          })()}
+
           <button type="button" onClick={() => { const p = assign; setAssign(null); setDel(p) }}
             className="flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600 transition active:scale-[0.99]">
             🗑️ Hapus dari waiting list
@@ -623,7 +722,7 @@ export default function SchedulePageV2({ admin = false }: { admin?: boolean }) {
           ) : (
             <ol className="max-h-[60vh] space-y-1.5 overflow-y-auto">
               {log.map(ev => {
-                const ico: Record<string, string> = { register: '➕', dp_confirm: '🟢', lunas: '✅', dp_unpaid: '↩️', expire: '⏰', cancel: '⚫', uncancel: '♻️', move_team: '🔀', move_roster: '🔁', delete: '🗑️' }
+                const ico: Record<string, string> = { register: '➕', dp_confirm: '🟢', lunas: '✅', dp_unpaid: '↩️', expire: '⏰', cancel: '⚫', uncancel: '♻️', move_team: '🔀', move_roster: '🔁', swap_waiting: '🔄', delete: '🗑️' }
                 return (
                   <li key={ev.id} className="flex items-start gap-2.5 rounded-xl bg-slate-50 px-3 py-2">
                     <span className="mt-0.5 shrink-0 text-[15px]">{ico[ev.kind] ?? '•'}</span>

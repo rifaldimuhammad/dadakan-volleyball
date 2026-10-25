@@ -13,6 +13,8 @@ export default function AdminDashboardV2() {
   const [form, setForm] = useState<Schedule | 'new' | null>(null)
   const [del, setDel] = useState<Schedule | null>(null)
   const [err, setErr] = useState('')
+  const [delBusy, setDelBusy] = useState(false)
+  const [delErr, setDelErr] = useState('')
 
   const load = useCallback(async () => {
     const [s, p] = await Promise.all([
@@ -33,9 +35,21 @@ export default function AdminDashboardV2() {
   useEffect(() => { load() }, [load])
   const done = () => { setForm(null); load() }
   async function remove() {
-    const { error } = await supabase.from('schedules').delete().eq('id', del!.id)
-    if (error) console.error(error)
-    setDel(null); load()
+    if (!del) return
+    setDelBusy(true); setDelErr('')
+    // .select() mengembalikan baris yang benar-benar terhapus -> deteksi kasus RLS diam-diam (0 baris).
+    const { data, error } = await supabase.from('schedules').delete().eq('id', del.id).select('id')
+    setDelBusy(false)
+    if (error) {
+      console.error(error)
+      setDelErr(`Gagal menghapus: ${error.message}`)
+      return
+    }
+    if (!data || data.length === 0) {
+      setDelErr('Jadwal tidak terhapus. Sesi admin mungkin sudah kedaluwarsa atau kamu tidak punya izin. Coba keluar lalu masuk lagi.')
+      return
+    }
+    setDel(null); setDelErr(''); load()
   }
   async function logout() { await supabase.auth.signOut(); nav('/admin/login') }
 
@@ -131,14 +145,15 @@ export default function AdminDashboardV2() {
         </Sheet>
       )}
       {del && (
-        <Sheet title="Hapus jadwal?" onClose={() => setDel(null)}>
+        <Sheet title="Hapus jadwal?" onClose={() => { setDel(null); setDelErr('') }}>
           <p className="text-ink-soft">
             Semua data pemain pada jadwal ini juga akan dihapus dan <b className="text-ink">tidak dapat dibatalkan</b>.
             Untuk menyembunyikan saja, ubah status menjadi Nonaktif lewat Edit.
           </p>
+          {delErr && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">{delErr}</p>}
           <div className="grid grid-cols-2 gap-3">
-            <button className="v2-btn v2-btn-ghost" onClick={() => setDel(null)}>Batal</button>
-            <button className="v2-btn v2-btn-danger" onClick={remove}>Hapus</button>
+            <button className="v2-btn v2-btn-ghost" disabled={delBusy} onClick={() => { setDel(null); setDelErr('') }}>Batal</button>
+            <button className="v2-btn v2-btn-danger" disabled={delBusy} onClick={remove}>{delBusy ? 'Menghapus…' : 'Hapus'}</button>
           </div>
         </Sheet>
       )}

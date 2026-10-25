@@ -107,6 +107,21 @@ export async function swapPlayers(aId: string, bId: string): Promise<string | nu
   }
 }
 
+/** Admin: tukar pemain WAITING (yang sudah DP/Lunas) dengan pemain TIM (inti/cadangan). */
+export async function swapWaitingWithTeam(waitingId: string, teamPlayerId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('swap_waiting_with_team', { p_waiting: waitingId, p_team_player: teamPlayerId })
+  if (error) { console.error(error); return /fetch|network/i.test(error.message) ? NET : ERR }
+  switch (data) {
+    case 'ok': return null
+    case 'not_paid': return 'Hanya pemain waiting yang sudah DP atau Lunas yang bisa ditukar.'
+    case 'not_waiting': return 'Pemain yang dinaikkan bukan dari waiting list.'
+    case 'not_team_player': return 'Lawan tukar harus pemain inti atau cadangan.'
+    case 'diff_schedule': return 'Pemain berasal dari jadwal berbeda.'
+    case 'forbidden': return 'Hanya admin yang bisa melakukan ini.'
+    default: return ERR
+  }
+}
+
 // ---------- DP (Down Payment) ----------
 
 const DP_ERR: Record<string, string> = {
