@@ -1,8 +1,6 @@
-/** Info klub — dipakai di section pembayaran & kontak halaman utama v2. */
+/** Info klub — kontak & link di halaman utama v2.
+ *  Info pembayaran (HTM, QRIS) bisa diubah admin — lihat src/lib/payment.ts. */
 export const CLUB_INFO = {
-  htm: 'Rp 19.000',
-  qrisImage: '/qris-kedai-arin.png',
-  qrisName: 'KEDAI ARIN',
   contactName: 'Satrio',
   contactPhone: '085854188114',
   // wa.me butuh format internasional tanpa 0 di depan

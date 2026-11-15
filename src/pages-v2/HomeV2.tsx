@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import type { GalleryItem, Schedule } from '../lib/types'
 import { fmtDate, fmtTime, scheduleSlug, capacityOf } from '../lib/utils'
 import { CLUB_INFO } from '../components-v2/info'
+import { usePaymentInfo } from '../lib/payment'
 
 const TEAMS = 4 // merah, biru, kuning, hijau
 
@@ -13,6 +14,7 @@ export default function HomeV2() {
   const [gallery, setGallery] = useState<GalleryItem[]>([])
   const [err, setErr] = useState('')
   const [qrisOpen, setQrisOpen] = useState(false)
+  const pay = usePaymentInfo()
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10)
@@ -59,7 +61,7 @@ export default function HomeV2() {
             Pilih jadwal main, masuk ke timmu, dan amankan slot sebelum penuh.
           </p>
           <div className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-white/15 px-3.5 py-2 text-sm font-semibold backdrop-blur">
-            <span>💰</span> HTM Slot <b>{CLUB_INFO.htm}</b>
+            <span>💰</span> HTM Slot <b>{pay.htm}</b>
           </div>
         </div>
       </div>
@@ -144,19 +146,19 @@ export default function HomeV2() {
           <h2 className="font-display text-lg font-extrabold tracking-tight text-ink">💳 Pembayaran</h2>
           <div className="flex items-center gap-4">
             <button onClick={() => setQrisOpen(true)} className="shrink-0 rounded-2xl border border-slate-200 bg-white p-2 shadow-soft transition active:scale-95">
-              <img src={CLUB_INFO.qrisImage} alt="QRIS KEDAI ARIN" className="h-24 w-24 rounded-lg object-contain" />
+              <img src={pay.qrisImage} alt={`QRIS ${pay.qrisName}`} className="h-24 w-24 rounded-lg object-contain" />
             </button>
             <div className="space-y-1 text-sm">
               <p className="font-bold text-ink">Scan QRIS</p>
-              <p className="text-ink-soft">a/n <b>{CLUB_INFO.qrisName}</b></p>
-              <p className="text-ink-muted">HTM Slot <b className="text-ink">{CLUB_INFO.htm}</b></p>
+              <p className="text-ink-soft">a/n <b>{pay.qrisName}</b></p>
+              <p className="text-ink-muted">HTM Slot <b className="text-ink">{pay.htm}</b></p>
               <button onClick={() => setQrisOpen(true)} className="mt-1 text-[13px] font-bold text-court-600">Perbesar QR →</button>
             </div>
           </div>
           </div>
-          <div className="hidden items-center justify-center rounded-2xl bg-court-50 p-6 text-center md:flex">
-            <p className="text-sm font-semibold text-court-700">Bayar HTM saat datang atau transfer QRIS sebelum main. Simpan bukti untuk konfirmasi admin.</p>
-          </div>
+          {pay.note && <div className="flex items-center justify-center rounded-2xl bg-court-50 p-4 text-center md:p-6">
+            <p className="text-sm font-semibold text-court-700">{pay.note}</p>
+          </div>}
         </section>
 
         {/* ===== KONTAK ===== */}
@@ -220,8 +222,8 @@ export default function HomeV2() {
       {qrisOpen && (
         <div onClick={() => setQrisOpen(false)} className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-6 backdrop-blur-sm animate-fade-up">
           <div onClick={e => e.stopPropagation()} className="w-full max-w-xs rounded-3xl bg-white p-4 text-center shadow-lift">
-            <img src={CLUB_INFO.qrisImage} alt="QRIS KEDAI ARIN" className="w-full rounded-xl" />
-            <p className="mt-3 text-sm font-bold text-ink">QRIS · {CLUB_INFO.qrisName}</p>
+            <img src={pay.qrisImage} alt={`QRIS ${pay.qrisName}`} className="w-full rounded-xl" />
+            <p className="mt-3 text-sm font-bold text-ink">QRIS · {pay.qrisName}</p>
             <button onClick={() => setQrisOpen(false)} className="v2-btn mt-3">Tutup</button>
           </div>
         </div>

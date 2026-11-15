@@ -4,6 +4,7 @@ import SchedulePage from './pages-v2/SchedulePageV2'
 import AdminLogin from './pages-v2/AdminLoginV2'
 import AdminDashboard from './pages-v2/AdminDashboardV2'
 import GalleryManager from './pages-v2/GalleryManagerV2'
+import PaymentSettings from './pages-v2/PaymentSettingsV2'
 import RequireAdmin from './components/RequireAdmin'
 
 /** Redirect link lama /v2/jadwal/:id (dan /v1/*) -> path utama agar tidak putus. */
@@ -22,6 +23,7 @@ export default function App() {
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
       <Route path="/admin/galeri" element={<RequireAdmin><GalleryManager /></RequireAdmin>} />
+      <Route path="/admin/pembayaran" element={<RequireAdmin><PaymentSettings /></RequireAdmin>} />
       <Route path="/admin/jadwal/:id" element={<RequireAdmin><SchedulePage admin /></RequireAdmin>} />
 
       {/* === Redirect link lama (/v2/* dan /v1/*) -> path utama === */}

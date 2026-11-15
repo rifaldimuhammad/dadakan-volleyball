@@ -66,6 +66,9 @@ export default function AdminDashboardV2() {
             <Link to="/admin/galeri" className="rounded-xl px-3 py-1.5 text-[13px] font-semibold text-court-700 transition hover:bg-court-50">
               🖼️ Galeri
             </Link>
+            <Link to="/admin/pembayaran" className="rounded-xl px-3 py-1.5 text-[13px] font-semibold text-court-700 transition hover:bg-court-50">
+              💳 Pembayaran
+            </Link>
             <button onClick={logout} className="rounded-xl px-3 py-1.5 text-[13px] font-semibold text-ink-muted transition hover:bg-slate-100">
               Keluar
             </button>
